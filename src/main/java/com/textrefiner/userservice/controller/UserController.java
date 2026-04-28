@@ -10,6 +10,6 @@ public class UserController {
 
     @GetMapping("/test")
     public String test() {
-        return "Hello from User Service!";
+        return "유저 서비스 연결 성공!";
     }
 }
