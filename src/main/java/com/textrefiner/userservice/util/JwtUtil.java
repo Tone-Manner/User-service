@@ -35,4 +35,14 @@ public class JwtUtil {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
+
+    // 토큰에서 이메일(Subject)만 추출하는 메서드
+    public String extractEmail(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject(); // generateToken 에서 setSubject(email)로 넣었던 값
+    }
 }

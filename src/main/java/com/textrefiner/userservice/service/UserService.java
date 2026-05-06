@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.textrefiner.userservice.dto.UserLoginRequest;
 import com.textrefiner.userservice.util.JwtUtil;
 
+import com.textrefiner.userservice.dto.UserProfileResponse;
+import com.textrefiner.userservice.entity.UserStatus;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -19,6 +22,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
+    // 회원가입
     @Transactional
     public Long signup(UserSignupRequest request) {
         // 1. 이메일 중복 체크
@@ -41,6 +45,7 @@ public class UserService {
         return savedUser.getId();
     }
 
+    // 로그인
     @Transactional(readOnly = true)
     public String login(UserLoginRequest request) {
         // 1. 이메일로 유저 찾기
@@ -54,5 +59,35 @@ public class UserService {
 
         // 3. 인증 성공 시 JWT 토큰 발급 (status 값 필수 전달!)
         return jwtUtil.generateToken(user.getId(), user.getEmail(), user.getStatus().name());
+    }
+
+    // 내 정보 조회 (마이페이지)
+    @Transactional(readOnly = true)
+    public UserProfileResponse getUserProfile(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("유저를 찾을 수 없습니다."));
+        return new UserProfileResponse(user);
+    }
+
+    // 대화창 생성 권한 확인 및 카운트 증가 (핵심 수익 모델)
+    @Transactional
+    public boolean useChatRoom(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("유저를 찾을 수 없습니다."));
+
+        // 유료 회원(PRO)이면 패스 (카운트 증가 안 함)
+        if (user.getStatus() == UserStatus.PRO) {
+            return true;
+        }
+
+        // 무료 회원(FREE)이면 4개 미만일 때만 허용 -> 카운트 +1
+        if (user.getChatRoomCount() < 4) {
+            user.setChatRoomCount(user.getChatRoomCount() + 1);
+            // JPA의 변경 감지(Dirty Checking)로 인해 userRepository.save()를 하지 않아도 DB에 자동 반영
+            return true;
+        }
+
+        // 무료 회원인데 이미 4개를 다 썼다면 거절 (결제 유도 트리거)
+        return false;
     }
 }
